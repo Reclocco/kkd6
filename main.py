@@ -1,5 +1,6 @@
 import copy
 import math
+import sys
 
 
 def decode():
@@ -27,15 +28,24 @@ def decode():
                      int.from_bytes(encoded.read(1), byteorder='little')]
         top_encoded.append([top_pixel[k] - 128 for k in range(3)])
 
+        bottom_sign = [int.from_bytes(encoded.read(1), byteorder='little'),
+                       int.from_bytes(encoded.read(1), byteorder='little'),
+                       int.from_bytes(encoded.read(1), byteorder='little')]
+
         bottom_pixel = [int.from_bytes(encoded.read(1), byteorder='little'),
                         int.from_bytes(encoded.read(1), byteorder='little'),
                         int.from_bytes(encoded.read(1), byteorder='little')]
+
+        for k in range(3):
+            if bottom_sign[k] == 0:
+                bottom_pixel[k] = -bottom_pixel[k]
+
         if i == 0:
             bottom_encoded.append(bottom_pixel)
         else:
-            bottom_encoded.append([bottom_pixel[k] - 128 + bottom_encoded[i-1][k] for k in range(3)])
+            bottom_encoded.append([bottom_pixel[k] + bottom_encoded[i - 1][k] for k in range(3)])
 
-        print(top_encoded[i], bottom_encoded[i], bottom_pixel)
+        print(bottom_encoded[i], bottom_pixel)
 
     for i in range(int(x * y / 2)):
         if i != 0:
@@ -69,7 +79,8 @@ def decode():
 
     for k in range(3):
         try:
-            out.write((int(bottom_encoded[int(x * y / 2) - 1][k] + top_encoded[int(x * y / 2) - 1][k])).to_bytes(1, 'little'))
+            out.write(
+                (int(bottom_encoded[int(x * y / 2) - 1][k] + top_encoded[int(x * y / 2) - 1][k])).to_bytes(1, 'little'))
         except OverflowError:
             if int(bottom_encoded[int(x * y / 2) - 1][k] + top_encoded[int(x * y / 2) - 1][k]) < 0:
                 out.write((0).to_bytes(1, 'little'))
@@ -106,36 +117,55 @@ def encode(bits):
 
     diff = []
 
-    image = []
     idx = 0
+    diff.append([0, 0, 0])
+
     for i in range(x * y):
         b_byte = int.from_bytes(f.read(1), byteorder='little')
         g_byte = int.from_bytes(f.read(1), byteorder='little')
         r_byte = int.from_bytes(f.read(1), byteorder='little')
 
-        image.append(b_byte)
-        image.append(g_byte)
-        image.append(r_byte)
-
-        top.append([(b_byte - b_prev) / 2, (g_byte - g_prev) / 2, (r_byte - r_prev) / 2])
-        bottom.append([(b_byte + b_prev) / 2, (g_byte + g_prev) / 2, (r_byte + r_prev) / 2])
+        if i != 0:
+            top.append([(b_byte - b_prev) / 2, (g_byte - g_prev) / 2, (r_byte - r_prev) / 2])
+            bottom.append([(b_byte + b_prev) / 2, (g_byte + g_prev) / 2, (r_byte + r_prev) / 2])
+        else:
+            top.append([b_byte, g_byte, r_byte])
+            bottom.append(copy.deepcopy([0, 0, 0]))
 
         if i % 2 == 0:
-            print(top[i], bottom[i], [bottom[i][k] - bottom[i - 1][k] + 128 for k in range(3)])
-
             for k in range(3):
                 encoded.write((belong(sectors, top[i][k] + 128)).to_bytes(1, 'little'))
 
             try:
-                diff.append([bottom[i][k] - bottom[i - 1][k] + diff[idx - 1][k] % 1 for k in range(3)])
+                diff.append([bottom[i][k] - bottom[i - 2][k] -
+                             math.floor(diff[idx - 1][k]) + diff[idx - 1][k] for k in range(3)])
 
                 for k in range(3):
-                    encoded.write((int(bottom[i][k] - bottom[i - 1][k] + 128 + diff[idx][k] % 1)).to_bytes(1, 'little'))
+                    if diff[idx][k] < 0:
+                        encoded.write((0).to_bytes(1, 'little'))
+                    else:
+                        encoded.write((1).to_bytes(1, 'little'))
+
+                for k in range(3):
+                    try:
+                        encoded.write(
+                            (int(math.fabs(math.floor(diff[idx][k])))).to_bytes(1, 'little'))
+
+                    except OverflowError:
+                        print(bottom[i], bottom[i - 2], [bottom[i][k] - bottom[i - 2][k] for k in range(3)], diff[idx])
+                        sys.exit(0)
 
             except IndexError:
                 for k in range(3):
+                    encoded.write((1).to_bytes(1, 'little'))
+
+                for k in range(3):
                     encoded.write((int(bottom[i][k])).to_bytes(1, 'little'))
-                    diff.append([0, 0, 0])
+
+            # try:
+            #     print(bottom[i], bottom[i - 2], [bottom[i][k] - bottom[i - 2][k] for k in range(3)], diff[idx])
+            # except IndexError:
+            #     print(bottom[i], bottom[i], [bottom[i][k] - bottom[i][k] for k in range(3)], "index err")
 
             idx += 1
 
