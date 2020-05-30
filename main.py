@@ -104,7 +104,10 @@ def encode(bits):
     g_prev = 0
     r_prev = 0
 
+    diff = []
+
     image = []
+    idx = 0
     for i in range(x * y):
         b_byte = int.from_bytes(f.read(1), byteorder='little')
         g_byte = int.from_bytes(f.read(1), byteorder='little')
@@ -117,19 +120,24 @@ def encode(bits):
         top.append([(b_byte - b_prev) / 2, (g_byte - g_prev) / 2, (r_byte - r_prev) / 2])
         bottom.append([(b_byte + b_prev) / 2, (g_byte + g_prev) / 2, (r_byte + r_prev) / 2])
 
-        # print([bottom[i][k] - bottom[i - 1][k] + 128 for k in range(3)])
-
         if i % 2 == 0:
+            print(top[i], bottom[i], [bottom[i][k] - bottom[i - 1][k] + 128 for k in range(3)])
+
             for k in range(3):
                 encoded.write((belong(sectors, top[i][k] + 128)).to_bytes(1, 'little'))
 
             try:
+                diff.append([bottom[i][k] - bottom[i - 1][k] + diff[idx - 1][k] % 1 for k in range(3)])
+
                 for k in range(3):
-                    encoded.write((int(bottom[i][k] - bottom[i - 1][k] + 128)).to_bytes(1, 'little'))
+                    encoded.write((int(bottom[i][k] - bottom[i - 1][k] + 128 + diff[idx][k] % 1)).to_bytes(1, 'little'))
 
             except IndexError:
                 for k in range(3):
                     encoded.write((int(bottom[i][k])).to_bytes(1, 'little'))
+                    diff.append([0, 0, 0])
+
+            idx += 1
 
         b_prev = copy.deepcopy(b_byte)
         g_prev = copy.deepcopy(g_byte)
@@ -155,7 +163,7 @@ def belong(sectors, x):
 
 
 def main():
-    encode(3)
+    encode(7)
     decode()
 
 
