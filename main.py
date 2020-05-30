@@ -3,6 +3,82 @@ import math
 import sys
 
 
+def check():
+    f1 = open('ex.tga', "rb")
+    f2 = open('out.tga', "rb")
+
+    f1.read(12)
+    f1.read(2)
+    f1.read(2)
+    f1.read(2)
+
+    f2.read(12)
+    x = f2.read(2)
+    y = f2.read(2)
+    f2.read(2)
+
+    x = int.from_bytes(x, byteorder='little')
+    y = int.from_bytes(y, byteorder='little')
+
+    quadra_all = 0
+    quadra_b = 0
+    quadra_g = 0
+    quadra_r = 0
+    sum_b = 0
+    sum_g = 0
+    sum_r = 0
+    sum_all = 0
+
+    for i in range(x * y):
+        b_byte1 = int.from_bytes(f1.read(1), byteorder='little')
+        g_byte1 = int.from_bytes(f1.read(1), byteorder='little')
+        r_byte1 = int.from_bytes(f1.read(1), byteorder='little')
+
+        b_byte2 = int.from_bytes(f2.read(1), byteorder='little')
+        g_byte2 = int.from_bytes(f2.read(1), byteorder='little')
+        r_byte2 = int.from_bytes(f2.read(1), byteorder='little')
+
+        quadra_b += math.pow((b_byte1 - b_byte2), 2)
+        quadra_g += math.pow((g_byte1 - g_byte2), 2)
+        quadra_r += math.pow((r_byte1 - r_byte2), 2)
+        quadra_all += math.pow((b_byte1 - b_byte2), 2) + \
+                      math.pow((g_byte1 - g_byte2), 2) + \
+                      math.pow((r_byte1 - r_byte2), 2)
+
+        sum_b += b_byte2 ** 2
+        sum_g += g_byte2 ** 2
+        sum_r += r_byte2 ** 2
+        sum_all += b_byte2 ** 2 + g_byte2 ** 2 + r_byte2 ** 2
+
+    mse = [quadra_b / (x * y), quadra_g / (x * y), quadra_r / (x * y)]
+
+    snr = []
+    try:
+        snr.append(sum_b / (x * y) / (quadra_b / (x * y)))
+    except ZeroDivisionError:
+        snr.append(float("inf"))
+
+    try:
+        snr.append(sum_g / (x * y) / (quadra_g / (x * y)))
+    except ZeroDivisionError:
+        snr.append(float("inf"))
+
+    try:
+        snr.append(sum_r / (x * y) / (quadra_r / (x * y)))
+    except ZeroDivisionError:
+        snr.append(float("inf"))
+
+    print("mse r:", mse[2])
+    print("mse g:", mse[1])
+    print("mse b:", mse[0])
+    print("mse all:", sum(mse))
+
+    print("snr r:", snr[0])
+    print("snr g:", snr[1])
+    print("snr b:", snr[2])
+    print("snr all:", sum(snr))
+
+
 def decode():
     encoded = open('encoded.tga', "rb")
     out = open('out.tga', 'wb')
@@ -44,8 +120,6 @@ def decode():
             bottom_encoded.append(bottom_pixel)
         else:
             bottom_encoded.append([bottom_pixel[k] + bottom_encoded[i - 1][k] for k in range(3)])
-
-        print(bottom_encoded[i], bottom_pixel)
 
     for i in range(int(x * y / 2)):
         if i != 0:
@@ -162,11 +236,6 @@ def encode(bits):
                 for k in range(3):
                     encoded.write((int(bottom[i][k])).to_bytes(1, 'little'))
 
-            # try:
-            #     print(bottom[i], bottom[i - 2], [bottom[i][k] - bottom[i - 2][k] for k in range(3)], diff[idx])
-            # except IndexError:
-            #     print(bottom[i], bottom[i], [bottom[i][k] - bottom[i][k] for k in range(3)], "index err")
-
             idx += 1
 
         b_prev = copy.deepcopy(b_byte)
@@ -193,8 +262,9 @@ def belong(sectors, x):
 
 
 def main():
-    encode(7)
+    encode(1)
     decode()
+    check()
 
 
 main()
