@@ -4,8 +4,8 @@ import sys
 
 
 def check():
-    f1 = open('ex.tga', "rb")
-    f2 = open('out.tga', "rb")
+    f1 = open(sys.argv[2], "rb")
+    f2 = open(sys.argv[4], "rb")
 
     f1.read(12)
     f1.read(2)
@@ -80,8 +80,8 @@ def check():
 
 
 def decode():
-    encoded = open('encoded.tga', "rb")
-    out = open('out.tga', 'wb')
+    encoded = open(sys.argv[3], "rb")
+    out = open(sys.argv[4], 'wb')
     out.write(encoded.read(12))
 
     x = encoded.read(2)
@@ -167,8 +167,8 @@ def decode():
 def encode(bits):
     sectors = [int(math.pow(2, 8 - bits) / 2 + i * math.pow(2, 8 - bits)) for i in range(int(math.pow(2, bits)))]
 
-    f = open('ex.tga', "rb")
-    encoded = open('encoded.tga', "wb")
+    f = open(sys.argv[2], "rb")
+    encoded = open(sys.argv[3], "wb")
     encoded.write(f.read(12))
 
     x = f.read(2)
@@ -262,7 +262,7 @@ def belong(sectors, x):
 
 
 def main():
-    encode(1)
+    encode(int(sys.argv[1]))
     decode()
     check()
 
